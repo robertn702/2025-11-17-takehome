@@ -55,14 +55,16 @@ async function fetchSearchResults(query: string): Promise<SearchResult[]> {
 
 export async function POST(req: Request) {
   try {
-    const {query} = await req.json();
+    const { prompt } = await req.json();
 
-    if (!query || typeof query !== 'string') {
+    if (!prompt || typeof prompt !== 'string') {
       return new Response(
-        JSON.stringify({error: 'Query is required'}),
+        JSON.stringify({error: 'Prompt is required'}),
         {status: 400, headers: {'Content-Type': 'application/json'}}
       );
     }
+
+    const query = prompt;
 
     // Fetch search results
     const searchResults = await fetchSearchResults(query);
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
       )
       .join('\n\n');
 
-    const prompt = `You are a helpful AI assistant that answers questions based on search results.
+    const systemPrompt = `You are a helpful AI assistant that answers questions based on search results.
 
 User question: ${query}
 
@@ -100,18 +102,18 @@ Answer:`;
     // Stream AI response
     const result = streamText({
       model: anthropic('claude-3-haiku-20240307'),
-      prompt,
+      prompt: systemPrompt,
       temperature: 0.7,
     });
 
-    // Return streaming response
-    return result.toTextStreamResponse();
+    // Return streaming response compatible with useCompletion
+    return result.toUIMessageStreamResponse();
 
   } catch (error) {
-    console.error('Error in /api/query:', error);
+    console.error('Error in /api/answer:', error);
     return new Response(
       JSON.stringify({
-        error: 'Failed to process query',
+        error: 'Failed to generate answer',
         details: error instanceof Error ? error.message : 'Unknown error'
       }),
       {status: 500, headers: {'Content-Type': 'application/json'}}

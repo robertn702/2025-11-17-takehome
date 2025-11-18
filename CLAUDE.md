@@ -18,3 +18,6 @@ This specification is intentionally vague as we want to see how you use your bes
 
 ## Submission
 Email a link to a public GitHub repo or a zip file with source code and a 20-120 second recording of functionality to nick@hanoverpark.com and chris@hanoverpark.com
+
+## Notes
+Backwards compatibility is not important. Nothing is deployed to production.
