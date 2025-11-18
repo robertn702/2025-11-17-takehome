@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@/contexts/QueryContext';
-import { useCompletion } from '@ai-sdk/react';
+import { useChat } from '@ai-sdk/react';
 
 export default function SearchPage() {
   const { query, searchResults, setSearchResults } = useQuery();
@@ -11,18 +11,13 @@ export default function SearchPage() {
   const [isLoadingSources, setIsLoadingSources] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { complete, completion, isLoading } = useCompletion({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat({
     api: '/api/answer',
-    onFinish: (prompt, completion) => {
-      console.log('Completion finished:', { prompt, completion });
-    },
     onError: (error) => {
-      console.error('Completion error:', error);
+      console.error('Chat error:', error);
       setError(error.message);
     },
   });
-
-  console.log("completion: ", completion)
 
   useEffect(() => {
     // If no query, redirect back to home
@@ -31,36 +26,41 @@ export default function SearchPage() {
       return;
     }
 
-    // Trigger the search
-    const performSearch = async () => {
-      setIsLoadingSources(true);
-      setError(null);
+    // Trigger the search only if this is the first message
+    if (messages.length === 0) {
+      const performSearch = async () => {
+        setIsLoadingSources(true);
+        setError(null);
 
-      try {
-        // First, fetch sources
-        const searchResponse = await fetch('/api/sources', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query }),
-        });
+        try {
+          // First, fetch sources
+          const searchResponse = await fetch('/api/sources', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query }),
+          });
 
-        if (!searchResponse.ok) {
-          throw new Error('Failed to fetch sources');
+          if (!searchResponse.ok) {
+            throw new Error('Failed to fetch sources');
+          }
+
+          const searchData = await searchResponse.json();
+          setSearchResults(searchData.results || []);
+          setIsLoadingSources(false);
+
+          // Then send the initial message to chat
+          await append({
+            role: 'user',
+            content: query,
+          });
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch results');
+          setIsLoadingSources(false);
         }
+      };
 
-        const searchData = await searchResponse.json();
-        setSearchResults(searchData.results || []);
-        setIsLoadingSources(false);
-
-        // Then stream the AI response
-        await complete(query);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch results');
-        setIsLoadingSources(false);
-      }
-    };
-
-    performSearch();
+      performSearch();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
@@ -85,7 +85,7 @@ export default function SearchPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
         {/* Query Display */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -120,25 +120,25 @@ export default function SearchPage() {
                 Answer
               </h2>
 
-              {isLoading && !completion && (
+              {isLoading && messages.filter(m => m.role === 'assistant').length === 0 && (
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                   <span>Generating answer...</span>
                 </div>
               )}
 
-              {completion && (
-                <div className="prose prose-gray dark:prose-invert max-w-none">
-                  <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed min-h-[100px] transition-none">
-                    {completion}
-                    {isLoading && (
+              {messages.filter(m => m.role === 'assistant').map((message, idx) => (
+                <div key={idx} className="prose prose-gray dark:prose-invert max-w-none mb-6">
+                  <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                    <span className="streaming-text">{message.content}</span>
+                    {isLoading && idx === messages.filter(m => m.role === 'assistant').length - 1 && (
                       <span className="inline-block w-1 h-4 ml-1 bg-blue-600 animate-pulse"></span>
                     )}
                   </div>
                 </div>
-              )}
+              ))}
 
-              {!isLoading && !completion && !error && (
+              {!isLoading && messages.filter(m => m.role === 'assistant').length === 0 && !error && (
                 <p className="text-gray-500 dark:text-gray-400">
                   No response generated yet.
                 </p>
@@ -213,6 +213,43 @@ export default function SearchPage() {
           </div>
         </div>
       </main>
+
+      {/* Sticky Follow-up Input */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-800 py-4 shadow-lg">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <form onSubmit={handleSubmit} className="relative">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={handleInputChange}
+                placeholder="Ask a follow-up question..."
+                disabled={isLoading}
+                className="flex-1 px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || isLoading}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Thinking...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                    <span>Ask</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

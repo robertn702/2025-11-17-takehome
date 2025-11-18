@@ -1,4 +1,10 @@
+import { z } from 'zod';
+
 export const runtime = 'edge';
+
+const requestSchema = z.object({
+  query: z.string().min(1, 'Query cannot be empty'),
+});
 
 interface SearchResult {
   title: string;
@@ -48,14 +54,22 @@ async function fetchSearchResults(query: string): Promise<SearchResult[]> {
 
 export async function POST(req: Request) {
   try {
-    const { query } = await req.json();
+    const body = await req.json();
 
-    if (!query || typeof query !== 'string') {
+    // Validate request body with Zod
+    const validation = requestSchema.safeParse(body);
+
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'Query is required' }),
+        JSON.stringify({
+          error: 'Invalid request',
+          details: validation.error.errors
+        }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    const { query } = validation.data;
 
     // Fetch search results
     const searchResults = await fetchSearchResults(query);

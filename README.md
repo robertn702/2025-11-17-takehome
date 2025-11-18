@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Perplexity Clone
 
-## Getting Started
+A simple clone of Perplexity built with Next.js, TypeScript, and the AI SDK. This application allows users to submit search queries and receive AI-generated responses based on search results with citations.
 
-First, run the development server:
+## Features
 
+- Search query interface with suggested queries
+- Integration with search API for retrieving web results
+- AI-powered responses using Anthropic's Claude
+- Citation support for transparency
+- Dark mode UI
+- Responsive design
+
+## Prerequisites
+
+- Node.js 18 or higher
+- npm or yarn package manager
+- Anthropic API key
+- Search API key (e.g., SerpAPI or similar)
+
+## Setup
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd takehome
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Create a `.env.local` file in the root directory with your API keys:
+```bash
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+SEARCH_API_KEY=your_search_api_key_here
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Running the Application
 
-## Learn More
+### Development Mode
 
-To learn more about Next.js, take a look at the following resources:
+Start the development server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The application will be available at [http://localhost:3000](http://localhost:3000)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Production Build
 
-## Deploy on Vercel
+Build the application for production:
+```bash
+npm run build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Start the production server:
+```bash
+npm start
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run typecheck` - Run TypeScript type checking
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── api/          # API routes
+│   ├── search/       # Search results page
+│   └── page.tsx      # Landing page
+├── contexts/         # React contexts for state management
+└── ...
+```
+
+## Technology Stack
+
+- **Framework**: Next.js 14
+- **Language**: TypeScript
+- **AI SDK**: Vercel AI SDK with Anthropic provider
+- **Styling**: Tailwind CSS
+- **State Management**: React Context API
+
+## Development Notes
+
+- This is a development project - backwards compatibility is not a concern
+- Nothing is deployed to production
+- Use the typecheck script to validate TypeScript before committing changes

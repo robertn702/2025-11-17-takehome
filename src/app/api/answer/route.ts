@@ -1,11 +1,21 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { streamText } from 'ai';
+import { streamText, smoothStream, convertToCoreMessages } from 'ai';
+import { z } from 'zod';
 
 const anthropic = createAnthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 export const runtime = 'edge';
+
+const messageSchema = z.object({
+  role: z.enum(['user', 'assistant', 'system']),
+  content: z.string(),
+});
+
+const requestSchema = z.object({
+  messages: z.array(messageSchema).min(1, 'At least one message is required'),
+});
 
 interface SearchResult {
   title: string;
@@ -55,16 +65,18 @@ async function fetchSearchResults(query: string): Promise<SearchResult[]> {
 
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json();
+    const { messages } = await req.json();
 
-    if (!prompt || typeof prompt !== 'string') {
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
-        JSON.stringify({error: 'Prompt is required'}),
+        JSON.stringify({error: 'Messages array is required'}),
         {status: 400, headers: {'Content-Type': 'application/json'}}
       );
     }
 
-    const query = prompt;
+    // Get the latest user message as the query
+    const lastMessage = messages[messages.length - 1];
+    const query = lastMessage.content;
 
     // Fetch search results
     const searchResults = await fetchSearchResults(query);
@@ -83,27 +95,29 @@ export async function POST(req: Request) {
       )
       .join('\n\n');
 
-    const systemPrompt = `You are a helpful AI assistant that answers questions based on search results.
+    const systemMessage = `You are a helpful AI assistant that answers questions based on search results.
 
-User question: ${query}
-
-Search results:
+Search results for the current question:
 ${context}
 
 Instructions:
-- Provide a comprehensive answer to the user's question based on the search results above
+- Provide comprehensive answers based on the search results above
 - Use inline citations in the format [1], [2], etc. to reference the search results
 - Be concise but thorough
-- If the search results don't contain enough information to answer the question, say so
+- If the search results don't contain enough information, say so
 - Synthesize information from multiple sources when relevant
+- For follow-up questions, maintain context from the conversation`;
 
-Answer:`;
-
-    // Stream AI response
+    // Stream AI response with smooth streaming and conversation history
     const result = streamText({
       model: anthropic('claude-3-haiku-20240307'),
-      prompt: systemPrompt,
+      system: systemMessage,
+      messages: convertToCoreMessages(messages),
       temperature: 0.7,
+      experimental_transform: smoothStream({
+        delayInMs: 25,
+        chunking: 'word',
+      }),
     });
 
     // Return streaming response compatible with useCompletion
