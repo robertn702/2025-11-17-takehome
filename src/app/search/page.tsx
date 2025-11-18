@@ -1,39 +1,42 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@/contexts/QueryContext';
-import { useChat } from '@ai-sdk/react';
 
 export default function SearchPage() {
-  const { query, searchResults, setSearchResults } = useQuery();
+  const { chat, searchResults, setSearchResults, error, setError } = useQuery();
   const router = useRouter();
   const [isLoadingSources, setIsLoadingSources] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [followUpInput, setFollowUpInput] = useState('');
+  const latestQuestionRef = useRef<HTMLDivElement>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat({
-    api: '/api/answer',
-    onError: (error) => {
-      console.error('Chat error:', error);
-      setError(error.message);
-    },
-  });
+  const { messages, status, sendMessage } = chat;
+  const isLoading = status === 'streaming' || status === 'submitted';
 
+  // Fetch sources whenever a new user message is added
   useEffect(() => {
-    // If no query, redirect back to home
-    if (!query) {
+    if (messages.length === 0) {
+      // No messages yet, redirect to home
       router.push('/');
       return;
     }
 
-    // Trigger the search only if this is the first message
-    if (messages.length === 0) {
-      const performSearch = async () => {
+    const lastMessage = messages[messages.length - 1];
+
+    // Only fetch sources for user messages
+    if (lastMessage.role === 'user') {
+      const fetchSources = async () => {
         setIsLoadingSources(true);
         setError(null);
 
         try {
-          // First, fetch sources
+          // Extract text from the message
+          const query = lastMessage.parts
+            .filter((part: any) => part.type === 'text')
+            .map((part: any) => part.text)
+            .join('');
+
           const searchResponse = await fetch('/api/sources', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -46,27 +49,45 @@ export default function SearchPage() {
 
           const searchData = await searchResponse.json();
           setSearchResults(searchData.results || []);
-          setIsLoadingSources(false);
-
-          // Then send the initial message to chat
-          await append({
-            role: 'user',
-            content: query,
-          });
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to fetch results');
+        } finally {
           setIsLoadingSources(false);
         }
       };
 
-      performSearch();
+      fetchSources();
+
+      // Scroll to the latest question with smooth behavior and header offset
+      setTimeout(() => {
+        if (latestQuestionRef.current) {
+          const element = latestQuestionRef.current;
+          const headerOffset = 100; // Offset for sticky header + some padding
+          const elementPosition = element.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [messages.length]);
 
-  if (!query) {
+  if (messages.length === 0) {
     return null; // Will redirect
   }
+
+  // Get the latest user message for the page title
+  const userMessages = messages.filter(m => m.role === 'user');
+  const latestQuery = userMessages.length > 0
+    ? userMessages[userMessages.length - 1].parts
+        .filter((part: any) => part.type === 'text')
+        .map((part: any) => part.text)
+        .join('')
+    : '';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 dark:from-gray-950 dark:to-gray-900">
@@ -78,7 +99,7 @@ export default function SearchPage() {
               onClick={() => router.push('/')}
               className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
             >
-              Search
+              Ask Hanover
             </button>
           </div>
         </div>
@@ -86,13 +107,6 @@ export default function SearchPage() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
-        {/* Query Display */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {query}
-          </h1>
-        </div>
-
         {error && (
           <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
@@ -100,55 +114,65 @@ export default function SearchPage() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* AI Response Section */}
-          <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <svg
-                  className="w-5 h-5 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </svg>
-                Answer
-              </h2>
+          {/* Conversation Section */}
+          <div className="lg:col-span-2 space-y-8">
+            {(() => {
+              const userMessages = messages.filter(m => m.role === 'user');
 
-              {isLoading && messages.filter(m => m.role === 'assistant').length === 0 && (
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span>Generating answer...</span>
-                </div>
-              )}
+              return userMessages.map((userMsg, userIdx) => {
+                const userText = userMsg.parts
+                  .filter((part) => part.type === 'text')
+                  .map((part) => (part as any).text)
+                  .join('');
 
-              {messages.filter(m => m.role === 'assistant').map((message, idx) => (
-                <div key={idx} className="prose prose-gray dark:prose-invert max-w-none mb-6">
-                  <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
-                    <span className="streaming-text">{message.content}</span>
-                    {isLoading && idx === messages.filter(m => m.role === 'assistant').length - 1 && (
-                      <span className="inline-block w-1 h-4 ml-1 bg-blue-600 animate-pulse"></span>
-                    )}
+                const isLatestUser = userIdx === userMessages.length - 1;
+
+                // Find the corresponding assistant response
+                const userMsgIndex = messages.indexOf(userMsg);
+                const assistantMsg = messages.find(
+                  (msg, idx) => idx > userMsgIndex && msg.role === 'assistant'
+                );
+
+                const assistantText = assistantMsg
+                  ? assistantMsg.parts
+                      .filter((part) => part.type === 'text')
+                      .map((part) => (part as any).text)
+                      .join('')
+                  : '';
+
+                return (
+                  <div key={userMsg.id || userIdx}>
+                    {/* User Message as Prominent Header */}
+                    <div ref={isLatestUser ? latestQuestionRef : null}>
+                      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
+                        {userText}
+                      </h1>
+                    </div>
+
+                    {/* AI Response Card - always shown, min-height for latest question */}
+                    <div className={`bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6 shadow-sm ${isLatestUser ? 'min-h-[calc(100vh-200px)]' : ''}`}>
+                      <div className="prose prose-gray dark:prose-invert max-w-none">
+                        <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                          {assistantText && (
+                            <>
+                              <span className="streaming-text">{assistantText}</span>
+                              {isLoading && isLatestUser && (
+                                <span className="inline-block w-1 h-4 ml-1 bg-blue-600 animate-pulse"></span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
-
-              {!isLoading && messages.filter(m => m.role === 'assistant').length === 0 && !error && (
-                <p className="text-gray-500 dark:text-gray-400">
-                  No response generated yet.
-                </p>
-              )}
-            </div>
+                );
+              });
+            })()}
           </div>
 
           {/* Sources Section */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6 shadow-sm lg:sticky lg:top-24 lg:self-start">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <svg
                   className="w-5 h-5 text-blue-600"
@@ -216,21 +240,29 @@ export default function SearchPage() {
 
       {/* Sticky Follow-up Input */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-800 py-4 shadow-lg">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <form onSubmit={handleSubmit} className="relative">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!followUpInput.trim() || isLoading) return;
+              sendMessage({ text: followUpInput });
+              setFollowUpInput('');
+            }}
+            className="relative"
+          >
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                value={input}
-                onChange={handleInputChange}
+                value={followUpInput}
+                onChange={(e) => setFollowUpInput(e.target.value)}
                 placeholder="Ask a follow-up question..."
                 disabled={isLoading}
                 className="flex-1 px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="submit"
-                disabled={!input.trim() || isLoading}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                disabled={!followUpInput.trim() || isLoading}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
               >
                 {isLoading ? (
                   <>
