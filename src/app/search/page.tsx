@@ -238,11 +238,11 @@ export default function SearchPage() {
                           ) : isLatestUser && isLoading ? (
                             // Skeleton loader while waiting for response
                             <div className="space-y-3 animate-pulse">
-                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-11/12"></div>
-                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-10/12"></div>
-                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-9/12"></div>
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full w-full opacity-100"></div>
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full w-11/12 opacity-80"></div>
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full w-10/12 opacity-60"></div>
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full w-full opacity-40"></div>
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full w-9/12 opacity-20"></div>
                             </div>
                           ) : null}
                         </div>
