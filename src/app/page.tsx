@@ -6,15 +6,15 @@ import { useQuery } from '@/contexts/QueryContext';
 
 export default function Home() {
   const [localQuery, setLocalQuery] = useState('');
-  const { setQuery } = useQuery();
+  const { chat } = useQuery();
   const router = useRouter();
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!localQuery.trim()) return;
 
-    // Set query in context and navigate to search page
-    setQuery(localQuery.trim());
+    // Send message via chat and navigate to search page
+    chat.sendMessage({ text: localQuery.trim() });
     router.push('/search');
   };
 
@@ -31,7 +31,7 @@ export default function Home() {
       <header className="border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-            Search
+            Ask Hanover
           </h1>
         </div>
       </header>
@@ -93,7 +93,10 @@ export default function Home() {
             {suggestedQueries.map((suggestion, index) => (
               <button
                 key={index}
-                onClick={() => setLocalQuery(suggestion)}
+                onClick={() => {
+                  chat.sendMessage({ text: suggestion });
+                  router.push('/search');
+                }}
                 className="text-left p-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all group"
               >
                 <div className="flex items-start gap-3">
