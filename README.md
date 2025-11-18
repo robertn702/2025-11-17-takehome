@@ -4,12 +4,19 @@ A simple clone of Perplexity built with Next.js, TypeScript, and the AI SDK. Thi
 
 ## Features
 
-- Search query interface with suggested queries
-- Integration with search API for retrieving web results
-- AI-powered responses using Anthropic's Claude
-- Citation support for transparency
-- Dark mode UI
-- Responsive design
+- **Search query interface** with suggested queries for quick start
+- **Conversational AI** - Multi-turn conversations with follow-up questions
+- **Real-time search integration** - Fetches relevant web results via SerpAPI
+- **AI-generated responses** with inline citations using Anthropic's Claude
+- **Interactive citations**:
+  - Clickable citations that scroll to and highlight sources
+  - Hover popovers showing citation preview with title, snippet, and URL
+- **Source panel** - Numbered references with links to original content
+- **Auto-scroll** - Automatically scrolls to latest questions for better UX
+- **Clear chat** - Start fresh conversations with one click
+- **Dark mode UI** - Full dark mode support throughout the application
+- **Responsive design** - Optimized for desktop and mobile devices
+- **Streaming responses** - Real-time AI response generation
 
 ## Prerequisites
 
