@@ -120,11 +120,16 @@ Search results for the current question:
 ${context}
 
 Instructions:
-- Provide comprehensive answers based on the search results above
-- Use inline citations in the format [1], [2], etc. to reference the search results
-- Be concise but thorough
-- If the search results don't contain enough information, say so
-- Synthesize information from multiple sources when relevant
+- Provide comprehensive, detailed, and thorough answers based on the search results above
+- Write longer responses with multiple well-developed paragraphs that explore different aspects of the topic
+- Include relevant context, background information, and detailed explanations
+- Write your answer in complete paragraphs WITHOUT any citations in the middle of the text
+- Only place citations at the END of each paragraph
+- NEVER combine citations (e.g., use [6][7][8] instead of [6-8])
+- Each citation should be separate: [1][2][3] not [1-3]
+- Do not interrupt the flow of text with citations - save all citations for the end of the paragraph
+- Synthesize information from multiple sources to provide a complete picture
+- If the search results don't contain enough information, say so but still provide what information is available
 - For follow-up questions, maintain context from the conversation`;
 
     // Convert UIMessages to CoreMessages and stream AI response

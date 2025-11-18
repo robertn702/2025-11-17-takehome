@@ -9,12 +9,13 @@ export default function SearchPage() {
   const router = useRouter();
   const [isLoadingSources, setIsLoadingSources] = useState(false);
   const [followUpInput, setFollowUpInput] = useState('');
+  const [hoveredCitation, setHoveredCitation] = useState<number | null>(null);
   const latestQuestionRef = useRef<HTMLDivElement>(null);
 
   const { messages, status, sendMessage } = chat;
   const isLoading = status === 'streaming' || status === 'submitted';
 
-  // Parse text and render citations as clickable links
+  // Parse text and render citations as clickable links with hover popovers
   const renderWithCitations = (text: string) => {
     const parts = text.split(/(\[\d+\])/g);
 
@@ -22,22 +23,61 @@ export default function SearchPage() {
       const match = part.match(/\[(\d+)\]/);
       if (match) {
         const num = parseInt(match[1]);
+        const source = searchResults[num - 1];
+
         return (
-          <button
-            key={i}
-            onClick={() => {
-              const element = document.getElementById(`source-${num}`);
-              element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-              // Briefly highlight the source
-              element?.classList.add('ring-2', 'ring-blue-500');
-              setTimeout(() => {
-                element?.classList.remove('ring-2', 'ring-blue-500');
-              }, 2000);
-            }}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline font-medium mx-0.5"
-          >
-            {part}
-          </button>
+          <span key={i} className="relative inline-block">
+            <button
+              onClick={() => {
+                const element = document.getElementById(`source-${num}`);
+                element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Briefly highlight the source
+                element?.classList.add('ring-2', 'ring-blue-500');
+                setTimeout(() => {
+                  element?.classList.remove('ring-2', 'ring-blue-500');
+                }, 2000);
+              }}
+              onMouseEnter={() => setHoveredCitation(num)}
+              onMouseLeave={() => setHoveredCitation(null)}
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline font-medium mx-0.5 cursor-pointer"
+            >
+              {part}
+            </button>
+
+            {/* Popover Card */}
+            {hoveredCitation === num && source && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 animate-in fade-in-0 zoom-in-95 duration-200">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 w-80 max-w-[90vw]">
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 text-xs font-medium flex items-center justify-center">
+                      {num}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1">
+                        {source.title}
+                      </h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3 mb-2">
+                        {source.snippet}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                          {new URL(source.link).hostname}
+                        </span>
+                        <span className="text-xs text-blue-600 dark:text-blue-400 whitespace-nowrap ml-2">
+                          Click to scroll
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Arrow */}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+                    <div className="border-8 border-transparent border-t-white dark:border-t-gray-800"></div>
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full border-8 border-transparent border-t-gray-200 dark:border-t-gray-700"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </span>
         );
       }
       return <span key={i}>{part}</span>;
