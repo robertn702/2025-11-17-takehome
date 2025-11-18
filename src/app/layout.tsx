@@ -15,7 +15,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Search",
+  title: "Ask Hanover",
   description: "AI-powered search and discovery",
 };
 

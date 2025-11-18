@@ -1,12 +1,17 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+import type { UseChatHelpers } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
 
 interface QueryContextType {
-  query: string;
-  setQuery: (query: string) => void;
   searchResults: SearchResult[];
   setSearchResults: (results: SearchResult[]) => void;
+  chat: UseChatHelpers<UIMessage>;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
 export interface SearchResult {
@@ -19,11 +24,21 @@ export interface SearchResult {
 const QueryContext = createContext<QueryContextType | undefined>(undefined);
 
 export function QueryProvider({ children }: { children: ReactNode }) {
-  const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const chat = useChat({
+    transport: new DefaultChatTransport({
+      api: '/api/answer',
+    }),
+    onError: (err) => {
+      console.error('Chat error:', err);
+      setError(err.message);
+    },
+  });
 
   return (
-    <QueryContext.Provider value={{ query, setQuery, searchResults, setSearchResults }}>
+    <QueryContext.Provider value={{ searchResults, setSearchResults, chat, error, setError }}>
       {children}
     </QueryContext.Provider>
   );
