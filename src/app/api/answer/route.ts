@@ -1,5 +1,5 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { streamText, smoothStream, convertToCoreMessages } from 'ai';
+import { streamText, convertToCoreMessages } from 'ai';
 import { z } from 'zod';
 
 const anthropic = createAnthropic({
@@ -8,13 +8,20 @@ const anthropic = createAnthropic({
 
 export const runtime = 'edge';
 
-const messageSchema = z.object({
+// UIMessage schema - accepts messages in the format sent by useChat
+const uiMessagePartSchema = z.object({
+  type: z.string(),
+}).passthrough(); // Allow additional properties like 'text'
+
+const uiMessageSchema = z.object({
+  id: z.string().optional(),
   role: z.enum(['user', 'assistant', 'system']),
-  content: z.string(),
-});
+  parts: z.array(uiMessagePartSchema),
+  metadata: z.any().optional(),
+}).passthrough();
 
 const requestSchema = z.object({
-  messages: z.array(messageSchema).min(1, 'At least one message is required'),
+  messages: z.array(uiMessageSchema).min(1, 'At least one message is required'),
 });
 
 interface SearchResult {
@@ -65,23 +72,35 @@ async function fetchSearchResults(query: string): Promise<SearchResult[]> {
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
+    const body = await req.json();
 
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    // Validate request body with Zod
+    const validation = requestSchema.safeParse(body);
+
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({error: 'Messages array is required'}),
+        JSON.stringify({
+          error: 'Invalid request',
+          details: validation.error.issues
+        }),
         {status: 400, headers: {'Content-Type': 'application/json'}}
       );
     }
 
+    const { messages } = validation.data;
+
     // Get the latest user message as the query
+    // Extract text from UIMessage parts
     const lastMessage = messages[messages.length - 1];
-    const query = lastMessage.content;
+    const query = lastMessage.parts
+      .filter((part: any) => part.type === 'text')
+      .map((part: any) => part.text)
+      .join('');
 
     // Fetch search results
     const searchResults = await fetchSearchResults(query);
 
-    if (searchResults.length === 0) {
+    if (!searchResults || searchResults.length === 0) {
       return new Response(
         JSON.stringify({error: 'No search results found'}),
         {status: 404, headers: {'Content-Type': 'application/json'}}
@@ -91,7 +110,7 @@ export async function POST(req: Request) {
     // Prepare context for AI
     const context = searchResults
       .map((result, idx) =>
-        `[${idx + 1}] ${result.title}\n${result.snippet}\nSource: ${result.link}`
+        `[${idx + 1}] ${result.title || 'Untitled'}\n${result.snippet || ''}\nSource: ${result.link}`
       )
       .join('\n\n');
 
@@ -108,19 +127,17 @@ Instructions:
 - Synthesize information from multiple sources when relevant
 - For follow-up questions, maintain context from the conversation`;
 
-    // Stream AI response with smooth streaming and conversation history
+    // Convert UIMessages to CoreMessages and stream AI response
+    const coreMessages = convertToCoreMessages(messages as any);
+
     const result = streamText({
       model: anthropic('claude-3-haiku-20240307'),
       system: systemMessage,
-      messages: convertToCoreMessages(messages),
+      messages: coreMessages,
       temperature: 0.7,
-      experimental_transform: smoothStream({
-        delayInMs: 25,
-        chunking: 'word',
-      }),
     });
 
-    // Return streaming response compatible with useCompletion
+    // Return streaming response compatible with useChat
     return result.toUIMessageStreamResponse();
 
   } catch (error) {
