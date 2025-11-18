@@ -9,7 +9,7 @@ export default function SearchPage() {
   const router = useRouter();
   const [isLoadingSources, setIsLoadingSources] = useState(false);
   const [followUpInput, setFollowUpInput] = useState('');
-  const [hoveredCitation, setHoveredCitation] = useState<number | null>(null);
+  const [hoveredCitationIndex, setHoveredCitationIndex] = useState<number | null>(null);
   const latestQuestionRef = useRef<HTMLDivElement>(null);
 
   const { messages, status, sendMessage } = chat;
@@ -37,15 +37,15 @@ export default function SearchPage() {
                   element?.classList.remove('ring-2', 'ring-blue-500');
                 }, 2000);
               }}
-              onMouseEnter={() => setHoveredCitation(num)}
-              onMouseLeave={() => setHoveredCitation(null)}
+              onMouseEnter={() => setHoveredCitationIndex(i)}
+              onMouseLeave={() => setHoveredCitationIndex(null)}
               className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline font-medium mx-0.5 cursor-pointer"
             >
               {part}
             </button>
 
             {/* Popover Card */}
-            {hoveredCitation === num && source && (
+            {hoveredCitationIndex === i && source && (
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 animate-in fade-in-0 zoom-in-95 duration-200">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 w-80 max-w-[90vw]">
                   <div className="flex items-start gap-3">
