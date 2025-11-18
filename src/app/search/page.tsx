@@ -226,7 +226,7 @@ export default function SearchPage() {
                     <div className={`bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6 shadow-sm ${isLatestUser ? 'min-h-[calc(100vh-200px)]' : ''}`}>
                       <div className="prose prose-gray dark:prose-invert max-w-none">
                         <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
-                          {assistantText && (
+                          {assistantText ? (
                             <>
                               <span className="streaming-text">
                                 {renderWithCitations(assistantText)}
@@ -235,7 +235,16 @@ export default function SearchPage() {
                                 <span className="inline-block w-1 h-4 ml-1 bg-blue-600 animate-pulse"></span>
                               )}
                             </>
-                          )}
+                          ) : isLatestUser && isLoading ? (
+                            // Skeleton loader while waiting for response
+                            <div className="space-y-3 animate-pulse">
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-11/12"></div>
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-10/12"></div>
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-9/12"></div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>
