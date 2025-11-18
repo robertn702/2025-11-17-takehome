@@ -12,6 +12,7 @@ interface QueryContextType {
   chat: UseChatHelpers<UIMessage>;
   error: string | null;
   setError: (error: string | null) => void;
+  clearChat: () => void;
 }
 
 export interface SearchResult {
@@ -37,8 +38,14 @@ export function QueryProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const clearChat = () => {
+    chat.setMessages([]);
+    setSearchResults([]);
+    setError(null);
+  };
+
   return (
-    <QueryContext.Provider value={{ searchResults, setSearchResults, chat, error, setError }}>
+    <QueryContext.Provider value={{ searchResults, setSearchResults, chat, error, setError, clearChat }}>
       {children}
     </QueryContext.Provider>
   );

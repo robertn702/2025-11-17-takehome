@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@/contexts/QueryContext';
 
 export default function SearchPage() {
-  const { chat, searchResults, setSearchResults, error, setError } = useQuery();
+  const { chat, searchResults, setSearchResults, error, setError, clearChat } = useQuery();
   const router = useRouter();
   const [isLoadingSources, setIsLoadingSources] = useState(false);
   const [followUpInput, setFollowUpInput] = useState('');
@@ -13,6 +13,36 @@ export default function SearchPage() {
 
   const { messages, status, sendMessage } = chat;
   const isLoading = status === 'streaming' || status === 'submitted';
+
+  // Parse text and render citations as clickable links
+  const renderWithCitations = (text: string) => {
+    const parts = text.split(/(\[\d+\])/g);
+
+    return parts.map((part, i) => {
+      const match = part.match(/\[(\d+)\]/);
+      if (match) {
+        const num = parseInt(match[1]);
+        return (
+          <button
+            key={i}
+            onClick={() => {
+              const element = document.getElementById(`source-${num}`);
+              element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              // Briefly highlight the source
+              element?.classList.add('ring-2', 'ring-blue-500');
+              setTimeout(() => {
+                element?.classList.remove('ring-2', 'ring-blue-500');
+              }, 2000);
+            }}
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline font-medium mx-0.5"
+          >
+            {part}
+          </button>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
 
   // Fetch sources whenever a new user message is added
   useEffect(() => {
@@ -96,7 +126,10 @@ export default function SearchPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => router.push('/')}
+              onClick={() => {
+                clearChat();
+                router.push('/');
+              }}
               className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
             >
               Ask Hanover
@@ -155,7 +188,9 @@ export default function SearchPage() {
                         <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                           {assistantText && (
                             <>
-                              <span className="streaming-text">{assistantText}</span>
+                              <span className="streaming-text">
+                                {renderWithCitations(assistantText)}
+                              </span>
                               {isLoading && isLatestUser && (
                                 <span className="inline-block w-1 h-4 ml-1 bg-blue-600 animate-pulse"></span>
                               )}
@@ -202,6 +237,7 @@ export default function SearchPage() {
                   {searchResults.map((result, idx) => (
                     <a
                       key={idx}
+                      id={`source-${idx + 1}`}
                       href={result.link}
                       target="_blank"
                       rel="noopener noreferrer"
